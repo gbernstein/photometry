@@ -10,12 +10,6 @@
 //   a name will be created from running counter.
 
 
-/** TODO:
- * Change color map to have its target function be a member of the collection and just be 
- *   referenced by name.
- * Allow interpolated-between-nodes 1d functions.
- **/
-
 #ifndef PHOTOMAP_H
 #define PHOTOMAP_H
 
@@ -23,16 +17,16 @@
 #include <list>
 #include <iostream>
 #include "Std.h"
-#include "UseTMV.h"
+#include "LinearAlgebra.h"
 #include "Poly2d.h"
 #include "Bounds.h"
-#include "NoData.h"  // Define the signal 
-
 #include "yaml-cpp/yaml.h"
 
 namespace photometry {
 
-  const double NODATA = astrometry::NODATA;
+  typedef linalg::Matrix<double> DMatrix;
+  typedef linalg::Vector<double> DVector;
+  const double NODATA=-888.;
   
   class PhotometryError: public std::runtime_error {
   public:
@@ -42,8 +36,8 @@ namespace photometry {
 
   class PhotoArguments {
   public:
-    PhotoArguments(): xDevice(NODATA), yDevice(NODATA), xExposure(NODATA), yExposure(NODATA),
-		      color(NODATA) {}
+    PhotoArguments(): xDevice(NODATA), yDevice(NODATA), xExposure(NODATA),
+      yExposure(NODATA), color(NODATA) {}
     double xDevice;
     double yDevice;
     double xExposure;
@@ -148,8 +142,8 @@ namespace photometry {
   };
 
 
-  // A ColorTerm will take any other kind of PhotoMap and multiply its shift by the color given
-  // in the PhotoArguments.
+  // A ColorTerm will take any other kind of PhotoMap and multiply its shift
+  // by the color given in the PhotoArguments.
   // The ColorTerm will assume ownership of the PhotoMap that it wraps and will delete it.  
   class ColorTerm: public PhotoMap {
   public:

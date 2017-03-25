@@ -15,7 +15,7 @@ const string cachename="photo";
 PhotoTemplate::PhotoTemplate(string tableName,
 			     string filename_,
 			     string name_): PhotoMap(name_), hasSplit(false), xSplit(0.),
-					    tableLow(0), tableHigh(0),
+					    tableLow(nullptr), tableHigh(nullptr),
 					    tableLowName(tableName), tableHighName(""),
 					    filename(filename_),
 					    scaling(DefaultScaling) {
@@ -29,7 +29,7 @@ PhotoTemplate::PhotoTemplate(double xSplit_,
 			     string lowName, string highName,
 			     string filename_,
 			     string name_): PhotoMap(name_), hasSplit(true), xSplit(xSplit_),
-					    tableLow(0), tableHigh(0),
+					    tableLow(nullptr), tableHigh(nullptr),
 					    tableLowName(lowName), tableHighName(highName),
 					    filename(filename_),
 					    scaling(DefaultScaling) {
