@@ -16,13 +16,11 @@ SubMap::SubMap(const list<PhotoMap*>& photoMaps,
 				ownMaps(!shareMaps)
 {
   // set up parameter vectors, making all PhotoMap parameters free and consectuve by default
-  for (list<PhotoMap*>::const_iterator i = photoMaps.begin();
-       i != photoMaps.end();
-       ++i) {
+  for (auto i : photoMaps) {
     if (shareMaps) {
-      vMaps.push_back(*i);
+      vMaps.push_back(i);
     } else {
-      vMaps.push_back((*i)->duplicate());
+      vMaps.push_back(i->duplicate());
     }
   }
   vNSubParams.clear();
@@ -40,15 +38,15 @@ SubMap::SubMap(const list<PhotoMap*>& photoMaps,
 
 SubMap::~SubMap() {
   if (ownMaps) 
-    for (int i=0; i<vMaps.size(); i++)
-      delete vMaps[i];
+    for (auto i : vMaps)
+      delete i;
 }
 
 PhotoMap*
 SubMap::duplicate() const {
   list <PhotoMap*> pmlist;
-  for (int i=0; i<nMaps(); i++)
-    pmlist.push_back(vMaps[i]);
+  for (auto i : vMaps)
+    pmlist.push_back(i);
   return new SubMap(pmlist, getName(), !ownMaps);
 }
 

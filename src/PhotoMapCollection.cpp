@@ -38,15 +38,9 @@ PhotoMapCollection::PhotoMapCollection() {
 
 PhotoMapCollection::~PhotoMapCollection() {
   // Destroy all of the compounded maps and submaps we've made:
-  for (MapIter i = mapElements.begin(); i!=mapElements.end(); ++i) {
-    if (i->second.atom) {
-      delete i->second.atom;
-      i->second.atom = 0;
-    }
-    if (i->second.realization) {
-      delete i->second.realization;
-      i->second.realization = 0;
-    }
+  for (auto& i : mapElements) {
+      delete i.second.atom;
+      delete i.second.realization;
   }
 }
 
@@ -57,8 +51,8 @@ PhotoMapCollection::~PhotoMapCollection() {
 void
 PhotoMapCollection::setParams(const DVector& p) {
   Assert(p.size()==parameterCount);
-  for (MapIter i = mapElements.begin(); i!=mapElements.end(); ++i) {
-    MapElement& map = i->second;
+  for (auto& i : mapElements) {
+    MapElement& map = i.second;
     if (map.isFixed) continue;
     int nSub = map.nParams;
     if (nSub<=0) continue;
@@ -71,7 +65,7 @@ PhotoMapCollection::setParams(const DVector& p) {
 
 DVector
 PhotoMapCollection::getParams() const {
-  DVector p(parameterCount, 888.);
+  DVector p(parameterCount, NODATA);
   for (auto& melpair : mapElements) {
     const MapElement& map = melpair.second;
     if (map.isFixed) continue;
@@ -80,8 +74,7 @@ PhotoMapCollection::getParams() const {
     if (!map.atom) 
       cerr << "mapElement is not atomic: " << melpair.first << " params: " << nSub << endl;
     Assert(map.atom);
-    p.subVector(map.startIndex, map.startIndex+nSub) = 
-      map.atom->getParams().subVector(0,nSub);
+    p.subVector(map.startIndex, map.startIndex+nSub) = map.atom->getParams();
   }
   return p;
 }
@@ -123,15 +116,15 @@ PhotoMapCollection::setFixed(set<string> nameList, bool isFixed) {
 
 bool
 PhotoMapCollection::getFixed(string name) const {
-  ConstMapIter i = mapElements.find(name);
+  auto i = mapElements.find(name);
   if (i==mapElements.end())
     throw PhotometryError("No member of PhotoMapCollection named " + name);
   auto& mel = i->second;
   if (mel.atom) {
     return mel.isFixed;
   } else {
-    for (auto i : mel.subordinateMaps) {
-      if (!getFixed(i)) {
+    for (auto j : mel.subordinateMaps) {
+      if (!getFixed(j)) {
 	// Any free member means compound is free
 	return false;
       }
@@ -161,8 +154,8 @@ PhotoMapCollection::rebuildParameterVector() {
   // And map counting
   atomCount = 0;
   freeCount = 0;
-  for (MapIter i = mapElements.begin(); i!=mapElements.end(); ++i) {
-    MapElement& map = i->second;
+  for (auto& i : mapElements) {
+    MapElement& map = i.second;
     // Only atomic map components go into the big parameter vector
     map.nParams = 0;
     map.number = -1;
@@ -181,8 +174,8 @@ PhotoMapCollection::rebuildParameterVector() {
   }
 
   // Then go through all extant SubMaps and update their versions of vectors & parameter counts.
-  for (MapIter i = mapElements.begin(); i!=mapElements.end(); ++i) {
-    MapElement& map = i->second;
+  for (auto& i : mapElements) {
+    MapElement& map = i.second;
     // Is there a SubMap here that we need to update?
     SubMap* sub = map.realization;
     if (!sub) continue;
@@ -190,7 +183,7 @@ PhotoMapCollection::rebuildParameterVector() {
     // Loop through all the map elements that this SubMap uses
     for (int iElement = 0; iElement < sub->vMaps.size(); iElement++) {
       string elementName = sub->vMaps[iElement]->getName();
-      ConstMapIter j = mapElements.find(elementName);
+      auto j = mapElements.find(elementName);
       if (j==mapElements.end()) 
 	throw PhotometryError("PhotoMapCollection::rebuildParameterVector could not find"
 			      " map element with name " + elementName);
@@ -213,10 +206,8 @@ PhotoMapCollection::rebuildParameterVector() {
 vector<string>
 PhotoMapCollection::allMapNames() const {
   vector<string> output;
-  for (ConstMapIter i = mapElements.begin();
-       i != mapElements.end();
-       ++i) 
-    output.push_back(i->first);
+  for (auto& i : mapElements)
+    output.push_back(i.first);
   return output;
 }
 
@@ -241,12 +232,12 @@ PhotoMapCollection::learnMap(const PhotoMap& pm,
     } 
     // create a new compound map from this, learning each dependency:
     MapElement mel;
-    for (int i = 0; i< sm->vMaps.size(); i++) {
-      if (sm->getName() == sm->vMaps[i]->getName())
+    for (auto mptr : sm->vMaps) {
+      if (sm->getName() == mptr->getName())
 	throw PhotometryError("PhotoMapCollection::learnMap encountered SubMap that has "
 			      "a dependence on PhotoMap with the same name: " + sm->getName());
-      mel.subordinateMaps.push_back(sm->vMaps[i]->getName());
-      learnMap(*sm->vMaps[i], duplicateNamesAreExceptions, rebuildIndices);
+      mel.subordinateMaps.push_back(mptr->getName());
+      learnMap(*mptr, duplicateNamesAreExceptions, rebuildIndices);
     }
     // Register this compound map
     mapElements.insert(std::pair<string,MapElement>(pm.getName(), mel));
@@ -269,23 +260,21 @@ PhotoMapCollection::learnMap(const PhotoMap& pm,
 void
 PhotoMapCollection::learn(PhotoMapCollection& rhs, bool duplicateNamesAreExceptions) {
   if (&rhs == this) return;	// No need to learn self
-  for (ConstMapIter iMap = rhs.mapElements.begin();
-       iMap != rhs.mapElements.end();
-       ++iMap) {
-    const MapElement& incoming = iMap->second;
-    if (mapExists(iMap->first)) {
+  for (auto& iMap : rhs.mapElements) {
+    const MapElement& incoming = iMap.second;
+    if (mapExists(iMap.first)) {
       // incoming map duplicates and existing name.
       if (duplicateNamesAreExceptions) 
 	throw PhotometryError("learn(PhotoMapCollection) with duplicate map name "
-			      + iMap->first);
+			      + iMap.first);
       // Duplicate will just be ignored. 
     } else {
       // A new mapName for us.  Add its mapElement to our list.
       MapElement mel;
-      if (iMap->second.atom) mel.atom = iMap->second.atom->duplicate();
-      mel.isFixed = iMap->second.isFixed;
-      mel.subordinateMaps = iMap->second.subordinateMaps;
-      mapElements.insert(std::pair<string,MapElement>(iMap->first, mel));
+      if (iMap.second.atom) mel.atom = iMap.second.atom->duplicate();
+      mel.isFixed = iMap.second.isFixed;
+      mel.subordinateMaps = iMap.second.subordinateMaps;
+      mapElements.insert(std::pair<string,MapElement>(iMap.first, mel));
       // Note cannot introduce circularity if the top-level map is new.
     }
   } // end input map loop
@@ -302,12 +291,10 @@ PhotoMapCollection::defineChain(string chainName, const list<string>& elements) 
     throw PhotometryError("PhotoMapCollection::defineChain with duplicate name: " 
 			  + chainName);
   // Check that elements exist
-  for (list<string>::const_iterator i = elements.begin();
-       i != elements.end();
-       ++i) 
-    if (!mapExists(*i))
+  for (auto& i : elements)
+    if (!mapExists(i))
       throw PhotometryError("PhotoMapCorrection::defineChain with unknown photo map element: "
-			    + *i);
+			    + i);
   mapElements.insert(std::pair<string, MapElement>(chainName, MapElement()));
   mapElements[chainName].subordinateMaps = elements;
   // Note that adding a new chain does not change parameter vector assignments
@@ -331,7 +318,7 @@ PhotoMapCollection::issueMap(string mapName) {
 
     list<PhotoMap*> atoms;
     int index=0;
-    for (list<string>::const_iterator i = atomList.begin();
+    for (auto i = atomList.begin();
 	 i != atomList.end();
 	 ++i, ++index) {
       Assert(mapElements[*i].atom);	// All elements should be atomic
@@ -363,16 +350,12 @@ PhotoMapCollection::cloneMap(string mapName) const {
 
   // A composite one we will create as a SubMap:
   list<PhotoMap*> vMaps;
-  for (list<string>::const_iterator i = el.subordinateMaps.begin();
-	 i != el.subordinateMaps.end();
-	 ++i) 
-    vMaps.push_back(cloneMap(*i));
+  for (auto& i : el.subordinateMaps)
+    vMaps.push_back(cloneMap(i));
   SubMap* retval = new SubMap(vMaps, mapName, false);
   // Clean up the stray clones since they've been duplicated by SubMap:
-  for (list<PhotoMap*>::iterator i = vMaps.begin();
-       i != vMaps.end();
-       ++i)
-    delete *i;
+  for (auto i : vMaps)
+    delete i;
   return retval;
 }
 
@@ -380,17 +363,15 @@ set<string>
 PhotoMapCollection::dependencies(string target) const {
   // Find target MapElement and add target to output dependency list.  
   // Assume no circular dependence.
-  ConstMapIter iTarget = mapElements.find(target);
+  auto iTarget = mapElements.find(target);
   if (iTarget == mapElements.end()) 
     throw PhotometryError("PhotoMapCollection has no element " + target + " in dependencies()");
   set<string> output;
   output.insert(target);
 
   // Call this routine recursively for all the map elements that the target depends on
-  for (list<string>::const_iterator i = iTarget->second.subordinateMaps.begin();
-       i != iTarget->second.subordinateMaps.end();
-       ++i) {
-    set<string> subs = dependencies(*i);
+  for (auto& i : iTarget->second.subordinateMaps) {
+    set<string> subs = dependencies(i);
     output.insert(subs.begin(), subs.end());
   }
 
@@ -430,10 +411,8 @@ PhotoMapCollection::orderAtoms(string mapName) const {
 
   // Otherwise we have a compound map at work here.
   // Call recursively to all subordinateMaps:
-  for (list<string>::const_iterator i = m.subordinateMaps.begin();
-       i != m.subordinateMaps.end();
-       ++i) {
-    list<string> subList = orderAtoms(*i);
+  for (auto& i : m.subordinateMaps) {
+    list<string> subList = orderAtoms(i);
     retval.splice(retval.end(), subList);
   }
   return retval;
@@ -452,20 +431,16 @@ PhotoMapCollection::checkCircularDependence(string mapName,
   set<string> ancestorsPlusSelf(ancestors);
   ancestorsPlusSelf.insert(mapName);
   const MapElement& m = mapElements.find(mapName)->second;
-  for (list<string>::const_iterator i = m.subordinateMaps.begin();
-       i != m.subordinateMaps.end();
-       ++i) 
-    checkCircularDependence(*i, ancestorsPlusSelf);
+  for (auto& i : m.subordinateMaps) 
+    checkCircularDependence(i, ancestorsPlusSelf);
 }
 
 void
 PhotoMapCollection::checkCompleteness() const {
   // Loop through all the (non-atomic) maps, throw exception if the refer to 
   // non-existent map elements or to themselves
-  for (ConstMapIter i = mapElements.begin();
-       i != mapElements.end();
-       ++i)
-    checkCircularDependence(i->first);
+  for (auto& i : mapElements) 
+    checkCircularDependence(i.first);
 }
 
 
@@ -474,7 +449,8 @@ PhotoMapCollection::checkCompleteness() const {
 //////////////////////////////////////////////////////////////
 
 void
-PhotoMapCollection::writeSingleMap(YAML::Emitter& os, const MapElement& mel, string name)  const {
+PhotoMapCollection::writeSingleMap(YAML::Emitter& os,
+				   const MapElement& mel, string name)  const {
   if (mel.atom) {
     // Atomic map, give all details:
     const ColorTerm* ct = dynamic_cast<const ColorTerm*> (mel.atom);

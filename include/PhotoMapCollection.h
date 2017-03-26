@@ -24,7 +24,6 @@
 using std::list;
 #include <string>
 #include "Std.h"
-#include "UseTMV.h"
 #include "PhotoMap.h"
 
 #include "yaml-cpp/yaml.h"
@@ -213,12 +212,12 @@ namespace photometry {
     int atomCount;	// Number of atomic map components
     int freeCount;	// Number of atompic components with free parameters
 
-    // ***Main data of the class are these two containers of structures listing
+    // ***Main data of the class is in this container of structures listing
     // all the PhotoMaps curated by this class:
 
     // Structure for every PhotoMap that we know about:
     struct MapElement {
-      MapElement(): realization(0), atom(0), isFixed(false), 
+      MapElement(): realization(nullptr), atom(nullptr), isFixed(false), 
 	nParams(0), number(-1) {}
       list<string> subordinateMaps;  // If it's compound, what it will be made from
       SubMap* realization;	     // pointer to its SubMap, if it's been built
@@ -231,11 +230,7 @@ namespace photometry {
 
     map<string, MapElement> mapElements;  // all known PhotoMaps, indexed by name.
 
-    typedef map<string, MapElement>::iterator MapIter;
-    typedef map<string, MapElement>::const_iterator ConstMapIter;
-
     // **** Useful utilities: *****
-
 
     // See if the chain of dependence of a map has any cycles.  Throws exception if so.
     void checkCircularDependence(string mapName,
