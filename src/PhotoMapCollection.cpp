@@ -321,12 +321,13 @@ PhotoMapCollection::issueMap(string mapName) {
     for (auto i = atomList.begin();
 	 i != atomList.end();
 	 ++i, ++index) {
-      Assert(mapElements[*i].atom);	// All elements should be atomic
-      atoms.push_back(mapElements[*i].atom);
+      auto& mel = mapElements[*i];
+      Assert(mel.atom);	// All elements should be atomic
+      atoms.push_back(mel.atom);
       // fill in its indices into master vector:
-      startIndices[index] = mapElements[*i].startIndex;
-      nParams[index] = mapElements[*i].isFixed ? 0 : mapElements[*i].nParams;
-      mapNumbers[index] = mapElements[*i].number;
+      startIndices[index] = mel.startIndex;
+      nParams[index] = mel.isFixed ? 0 : mel.nParams;
+      mapNumbers[index] = mel.number;
     }
     SubMap* sm = new SubMap(atoms, mapName, true);
     sm->vStartIndices = startIndices;
