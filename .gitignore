@@ -1,3 +1,8 @@
+# Latex stuff
+*.aux
+*.log
+doc/PhotoMap.pdf
+
 # Compiled Object files
 *.slo
 *.lo
