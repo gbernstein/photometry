@@ -19,7 +19,7 @@ EXTDIRS :=
 
 # Collect the includes and libraries we need
 ifdef YAML_DIR
-INCLUDES += -I $(YAML_DIR)/include
+INCLUDES += -I $(YAML_DIR)/include -D USE_YAML
 LIBS += -L $(YAML_DIR)/lib -lyaml-cpp
 else
 $(error Require YAML_DIR in environment)
@@ -33,13 +33,14 @@ else
 $(error Require GBUTIL_DIR in environment)
 endif
 
+# Use either TMV or EIGEN, not both (prefer TMV)
 ifdef TMV_DIR
 INCLUDES += -I $(TMV_DIR)/include -D USE_TMV
 LIBS += $(shell cat $(TMV_DIR)/share/tmv/tmv-link) -ltmv_symband 
-endif
-
+else 
 ifdef EIGEN_DIR
 INCLUDES += -I $(EIGEN_DIR) -D USE_EIGEN
+endif
 endif
 
 # Check that either TMV or EIGEN are available (ok to have both)
@@ -115,7 +116,10 @@ depend: local-depend
 
 local-depend:
 	$(RM) .depend
-	for src in $(SUBS:%.cpp=%) $(EXECS:%.cpp=%); \
+	for src in $(SUBS:$(SUBDIR)/%.cpp=%); \
+	 do $(CXX) $(CXXFLAGS) $(INCLUDES) -MM $(SUBDIR)/$$src.cpp -MT obj/$$src.o >> .depend; \
+	done
+	for src in $(EXECS:%.cpp=%); \
 	 do $(CXX) $(CXXFLAGS) $(INCLUDES) -MM $$src.cpp -MT obj/$$src.o >> .depend; \
         done
 
@@ -123,10 +127,10 @@ clean: local-clean
 	for dir in $(EXTDIRS); do (cd $$dir && $(MAKE) clean); done
 
 local-clean:
-	rm -f $(OBJDIR)/*.o $(BINDIR)/* $(TESTBINDIR)/* *~ *.dvi *.aux core .depend
+	rm -rf $(OBJDIR)/*.o $(BINDIR)/* $(TESTBINDIR)/* *~ *.dvi *.aux core .depend
 
 ifeq (.depend, $(wildcard .depend))
 include .depend
 endif
 
-.PHONY: all install dist depend clean 
+.PHONY: all install dist depend clean local-clean local-depend exts tests
