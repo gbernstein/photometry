@@ -119,6 +119,12 @@ namespace photometry {
 		  bool rebuildIndices=true); 
     void learn(PhotoMapCollection& source, bool duplicateNamesAreExceptions=false);
 
+    // Mark a map as invalid / unused
+    void invalidate(string mapName);
+
+    // Purge all map elements that are only used by invalidated maps
+    void purgeInvalid();
+
     // Define a new PhotoMap that is compounding of a list of other PhotoMaps.  Maps
     // are applied to mag in the order they occur in list
     void defineChain(string chainName, const list<string>& elements);
@@ -218,7 +224,7 @@ namespace photometry {
     // Structure for every PhotoMap that we know about:
     struct MapElement {
       MapElement(): realization(nullptr), atom(nullptr), isFixed(false), 
-	nParams(0), number(-1) {}
+	nParams(0), number(-1), isValid(true) {}
       list<string> subordinateMaps;  // If it's compound, what it will be made from
       SubMap* realization;	     // pointer to its SubMap, if it's been built
       PhotoMap* atom;		     // Pointer to the PhotoMap itself, if atomic
@@ -226,9 +232,13 @@ namespace photometry {
       int nParams;		     // Number of parameters (only atomic is nonzero)
       int number;		     // sequential index among all maps with free parameters
       bool isFixed;		     // True if its parameters are currently fixed.
+      bool isValid;		     // False if no info available to fit it
     };
 
     map<string, MapElement> mapElements;  // all known PhotoMaps, indexed by name.
+
+    // Remove knowledge of a particular map or WCS and its realization if it exists.
+    void removeMap(string mapName);
 
     // **** Useful utilities: *****
 

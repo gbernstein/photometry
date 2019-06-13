@@ -445,6 +445,69 @@ PhotoMapCollection::checkCompleteness() const {
 }
 
 
+void
+PhotoMapCollection::invalidate(string mapName) {
+  auto it = mapElements.find(mapName);
+  if (it==mapElements.end()) return;
+  it->second.isValid = false;
+}
+
+template <class T>
+void
+set_subtract(std::set<T> s1, const std::set<T> s2) {
+  auto i1 = s1.begin();
+  auto i2 = s2.begin();
+  while(i1!=s1.end() && i2!=s2.end()) {
+    if (*i1 < *i2) {
+      i1++;
+    } else if (*i2 < *i1) {
+      i2++;
+    } else {
+      // Equality: remove from s1
+      i1 = s1.erase(i1);
+      i2++;
+    }
+  }
+}
+				       
+void
+PhotoMapCollection::purgeInvalid() {
+  // Collect names of all maps that invalid maps use,
+  // and get rid of them.
+  set<string> unneeded;
+  for (auto& i : mapElements) {
+    if (i.second.isValid) continue;
+    auto depend = dependencies(i.first);
+    unneeded.insert(depend.begin(), depend.end());
+  }
+  // Now go through all PhotoMaps.  If they are
+  // not dependencies of the bad ones, then
+  // we keep everything that they need.
+  for (auto& i : mapElements) {
+    if (unneeded.count(i.first)) continue; // It's a dependency of bad ones.
+    // If not, then it's part of a good one,
+    // and we want to keep everything it needs.
+    set_subtract(unneeded, dependencies(i.first));
+  }
+  // Now kill all unneeded maps
+  for (auto s : unneeded)
+    removeMap(s);
+
+  // Recalculate all parameter indices
+  rebuildParameterVector();
+}
+
+void
+PhotoMapCollection::removeMap(string mapName) {
+  auto it = mapElements.find(mapName);
+  if (it == mapElements.end())
+    return; // Do nothing if there is no such map
+  if (it->second.atom)
+    delete it->second.atom;
+  if (it->second.realization)
+    delete it->second.realization;
+  mapElements.erase(it);
+}
 //////////////////////////////////////////////////////////////
 // YAML (De-) Serialization
 //////////////////////////////////////////////////////////////
