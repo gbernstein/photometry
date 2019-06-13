@@ -454,7 +454,7 @@ PhotoMapCollection::invalidate(string mapName) {
 
 template <class T>
 void
-set_subtract(std::set<T> s1, const std::set<T> s2) {
+set_subtract(std::set<T>& s1, const std::set<T> s2) {
   auto i1 = s1.begin();
   auto i2 = s2.begin();
   while(i1!=s1.end() && i2!=s2.end()) {
@@ -502,10 +502,14 @@ PhotoMapCollection::removeMap(string mapName) {
   auto it = mapElements.find(mapName);
   if (it == mapElements.end())
     return; // Do nothing if there is no such map
-  if (it->second.atom)
+  if (it->second.atom) {
     delete it->second.atom;
-  if (it->second.realization)
+    it->second.atom = nullptr;
+  }
+  if (it->second.realization) {
     delete it->second.realization;
+    it->second.realization = nullptr;
+  }
   mapElements.erase(it);
 }
 //////////////////////////////////////////////////////////////
